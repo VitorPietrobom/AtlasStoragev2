@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Atlas",
+    "slug": "atlas",
+    "scheme": "atlas",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F4F0E8",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.vitorpietrobom.atlas",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.vitorpietrobom.atlas",
+      "adaptiveIcon": {
+        "backgroundColor": "#F4F0E8",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-image",
+      "expo-font",
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Atlas photographs your items and bins to make stickers and remember where things are.",
+          "photosPermission": "Atlas can use photos you pick as item stickers."
+        }
+      ]
+    ]
+  }
+}
