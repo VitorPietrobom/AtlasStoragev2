@@ -1,50 +1,47 @@
-// Web preview only (used to check screens in a browser): the whole house as
-// one JSON blob in localStorage.
+// Web: records in localStorage, synced the same way as on the phone.
 
-import { emptyTables, TABLE_NAMES, type Tables } from '../core/types';
+import type { Tables } from '../core/types';
 import type { Change } from './diff';
+import { MemoryRecords, type Row } from './records';
 
-const KEY = 'atlas.tables.v1';
-let cache: Tables | null = null;
+const KEY = 'atlas.records.v2';
 
-function read(): Tables | null {
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+function writeSoon() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    try {
+      globalThis.localStorage?.setItem(KEY, JSON.stringify({ rows: [...store.rows.values()], cursors: store.cursors }));
+    } catch {
+      // Storage full or blocked: keep working in memory.
+    }
+  }, 50);
+}
+
+const store = new MemoryRecords(writeSoon);
+
+function read() {
   try {
     const raw = globalThis.localStorage?.getItem(KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<Tables>;
-    const t = emptyTables();
-    for (const name of TABLE_NAMES) if (parsed[name]) (t[name] as unknown) = parsed[name];
-    return t;
-  } catch {
-    return null;
-  }
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as { rows: Row[]; cursors: MemoryRecords['cursors'] };
+    for (const r of parsed.rows) store.rows.set(`${r.table}/${r.id}`, r);
+    store.cursors = parsed.cursors ?? {};
+  } catch {}
 }
 
 export async function load(): Promise<Tables | null> {
-  cache = read();
-  return cache;
+  read();
+  return store.load();
 }
 
 export async function save(changes: Change[]): Promise<void> {
-  if (changes.length === 0) return;
-  const t = cache ?? emptyTables();
-  for (const c of changes) {
-    const table = { ...(t[c.table] as Record<string, unknown>) };
-    if (c.kind === 'upsert') table[c.id] = c.data;
-    else delete table[c.id];
-    (t[c.table] as unknown) = table;
-  }
-  cache = t;
-  try {
-    globalThis.localStorage?.setItem(KEY, JSON.stringify(t));
-  } catch {
-    // Storage full or blocked: the preview keeps working in memory.
-  }
+  store.save(changes);
 }
 
 export async function clear(): Promise<void> {
-  cache = null;
-  try {
-    globalThis.localStorage?.removeItem(KEY);
-  } catch {}
+  store.clear();
 }
+
+export const syncStore = store;

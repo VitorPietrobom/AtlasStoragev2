@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { Item } from '../core/types';
-import { photoUri } from '../data/photos';
+import { usePhotoUri } from '../data/usePhoto';
 import { font, useTheme } from '../theme';
 
 /** A stable tilt in [-3°, 3°] from the item id, so a sticker always sits the same way. */
@@ -43,8 +43,8 @@ export function Sticker({
 }) {
   const p = useTheme();
   const rotate = tilt ? `${tiltFor(item.id)}deg` : '0deg';
-  const sticker = photoUri(item.stickerUri);
-  const photo = photoUri(item.photoUri);
+  const sticker = usePhotoUri(item.stickerUri);
+  const photo = usePhotoUri(item.photoUri);
   const shadow: ViewStyle = {
     shadowColor: '#000',
     shadowOpacity: 0.18,

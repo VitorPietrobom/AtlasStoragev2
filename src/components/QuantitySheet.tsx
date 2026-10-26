@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,14 +26,16 @@ export function QuantitySheet({
   const insets = useSafeAreaInsets();
   const available = item.quantityTotal - item.quantityOut;
   const [n, setN] = useState(1);
-  useEffect(() => {
-    if (visible) setN(1);
-  }, [visible]);
+  // Start from 1 next time the sheet opens.
+  const close = () => {
+    setN(1);
+    onClose();
+  };
   const where = binNumber !== undefined ? binNumberLabel(binNumber) : 'the bin';
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable accessibilityLabel="Close" onPress={onClose} style={{ flex: 1, backgroundColor: p.scrim }} />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+      <Pressable accessibilityLabel="Close" onPress={close} style={{ flex: 1, backgroundColor: p.scrim }} />
       <View
         style={{
           backgroundColor: p.surface,
@@ -74,7 +76,13 @@ export function QuantitySheet({
             ? `${available - n} stay in ${where}. Only the ${n === 1 ? 'one' : n} you took go${n === 1 ? 'es' : ''} to the Out tray.`
             : `All of them go to the Out tray.`}
         </T>
-        <Button title={`Took ${n}`} onPress={() => onTake(n)} />
+        <Button
+          title={`Took ${n}`}
+          onPress={() => {
+            setN(1);
+            onTake(n);
+          }}
+        />
       </View>
     </Modal>
   );

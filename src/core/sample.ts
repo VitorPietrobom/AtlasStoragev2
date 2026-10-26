@@ -1,9 +1,8 @@
 // The house from the design boards: a 5-level wardrobe and an under-bed drawer.
 // Used for "Try with a sample house" on first run, and by the tests.
 
-import { slotsOfLevel } from './grid';
+import { mergeSlots, slotsOfLevel } from './grid';
 import * as ops from './ops';
-import { mergeSlots } from './grid';
 import { emptyTables, type Depth, type ID, type Tables } from './types';
 
 type BinSpec = [cell: string, number: number, category: string, items?: (string | [string, number])[]];

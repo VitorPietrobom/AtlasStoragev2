@@ -3,11 +3,13 @@ import { Alert, Platform, View } from 'react-native';
 
 import { Card, Hairline, ListRow, Screen, SectionLabel, T, TopBar } from '../components/ui';
 import { useAtlas } from '../data/store';
+import { useSync } from '../sync/controller';
 
 export default function Settings() {
   const t = useAtlas((s) => s.tables);
   const loadSample = useAtlas((s) => s.loadSample);
   const erase = useAtlas((s) => s.eraseEverything);
+  const sync = useSync();
   const s = t.settings.settings;
   const units = Object.keys(t.units).length;
   const cats = Object.values(t.categories).filter((c) => !c.isOthers).length;
@@ -45,7 +47,11 @@ export default function Settings() {
 
       <SectionLabel>Data</SectionLabel>
       <Card style={{ paddingVertical: 4 }}>
-        <ListRow title="Stored" value="On this phone" chevron={false} />
+        <ListRow
+          title="Sync"
+          value={!sync.configured ? 'Off · this phone only' : sync.user ? (sync.user.email ?? 'On') : 'Signed out'}
+          onPress={() => router.push('/account')}
+        />
         <Hairline />
         <ListRow
           title="Load the sample house"
@@ -61,14 +67,20 @@ export default function Settings() {
         <ListRow
           title="Erase everything"
           onPress={() =>
-            confirm('Erase', 'Every unit, bin, item and its history is deleted from this phone.', () => {
-              void erase().then(() => router.dismissTo('/'));
-            })
+            confirm(
+              'Erase',
+              sync.user
+                ? 'Every unit, bin, item and its history is deleted here and from your synced devices.'
+                : 'Every unit, bin, item and its history is deleted from this phone.',
+              () => {
+                void erase().then(() => router.dismissTo('/'));
+              },
+            )
           }
         />
       </Card>
       <View style={{ height: 20 }} />
-      <T v="small">Sync between devices and export arrive in M2.</T>
+      <T v="small">Export arrives in M2.</T>
     </Screen>
   );
 }

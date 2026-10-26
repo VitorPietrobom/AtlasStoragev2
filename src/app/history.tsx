@@ -15,7 +15,6 @@ export default function History() {
   const events = Object.values(t.events)
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 300);
-  let lastDay = '';
 
   return (
     <Screen>
@@ -24,10 +23,9 @@ export default function History() {
         History
       </T>
       {events.length === 0 ? <T v="small">Nothing yet.</T> : null}
-      {events.map((e) => {
+      {events.map((e, i) => {
         const day = dayLabel(e.at);
-        const header = day !== lastDay ? day : null;
-        lastDay = day;
+        const header = i === 0 || dayLabel(events[i - 1].at) !== day ? day : null;
         const { title, detail } = describeEvent(t, e);
         return (
           <View key={e.id}>
