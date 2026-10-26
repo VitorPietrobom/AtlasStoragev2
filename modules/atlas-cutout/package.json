@@ -1,0 +1,11 @@
+{
+  "name": "atlas-cutout",
+  "version": "0.1.0",
+  "description": "On-device foreground cut-outs for Atlas stickers (Apple Vision on iOS, ML Kit subject segmentation on Android).",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "MIT",
+  "author": "Atlas",
+  "homepage": "https://github.com/vitorpietrobom/AtlasStoragev2",
+  "private": true
+}
