@@ -182,6 +182,8 @@ export const TABLE_NAMES: TableName[] = [
 ];
 
 export const OTHERS_CATEGORY_ID = 'others';
+/** Fixed so that every device creates the same Others bin and sync merges them. */
+export const OTHERS_BIN_ID = 'others-bin';
 
 export function emptyTables(): Tables {
   return {

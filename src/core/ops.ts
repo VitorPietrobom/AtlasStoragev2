@@ -5,6 +5,7 @@ import { generateSlots, generateZones, slotCode, zoneCode } from './grid';
 import { newId } from './ids';
 import { binSlotCode, othersBin } from './naming';
 import {
+  OTHERS_BIN_ID,
   OTHERS_CATEGORY_ID,
   type AtlasEvent,
   type Bin,
@@ -55,7 +56,7 @@ export function ensureOthers(t: Tables, now = new Date()): Tables {
     };
   }
   if (!othersBin(out)) {
-    const id = newId();
+    const id = OTHERS_BIN_ID;
     const bin: Bin = {
       id,
       number: 0,

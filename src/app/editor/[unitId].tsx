@@ -56,8 +56,9 @@ export default function StorageEditor() {
     try {
       setDraft(fn(draft));
     } catch (e) {
-      if (e instanceof GridError) Platform.OS === 'web' ? console.warn(e.message) : Alert.alert('Can’t do that', e.message);
-      else throw e;
+      if (!(e instanceof GridError)) throw e;
+      if (Platform.OS === 'web') console.warn(e.message);
+      else Alert.alert('Can’t do that', e.message);
     }
   };
 

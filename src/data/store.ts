@@ -5,7 +5,9 @@ import { levelsOfUnit } from '../core/grid';
 import { ensureOthers } from '../core/ops';
 import { sampleHouse } from '../core/sample';
 import { emptyTables, type ID, type Tables } from '../core/types';
+import type { SyncRecord } from '../sync/types';
 import { diffTables } from './diff';
+import { mergeRecords } from './records';
 import { newUuid } from './uuid';
 import * as persistence from './persistence';
 
@@ -23,14 +25,30 @@ interface AtlasState {
   show(unitId: ID, levelId?: ID): void;
   loadSample(): void;
   eraseEverything(): Promise<void>;
+  /** Fold in records that arrived from the cloud (already stored locally). */
+  applyRemote(records: SyncRecord[]): void;
 }
 
 let writes: Promise<void> = Promise.resolve();
+const writeListeners = new Set<() => void>();
+
+/** Called after local changes reach storage (sync pushes them). */
+export function onLocalWrite(fn: () => void): () => void {
+  writeListeners.add(fn);
+  return () => writeListeners.delete(fn);
+}
 
 function persist(prev: Tables, next: Tables) {
   const changes = diffTables(prev, next);
   if (changes.length === 0) return;
-  writes = writes.then(() => persistence.save(changes)).catch((e) => console.warn('Atlas: save failed', e));
+  queue(() => persistence.save(changes));
+}
+
+function queue(write: () => Promise<void>) {
+  writes = writes
+    .then(write)
+    .then(() => writeListeners.forEach((fn) => fn()))
+    .catch((e) => console.warn('Atlas: save failed', e));
 }
 
 function firstView(t: Tables): { unitId: ID | null; levelId: ID | null } {
@@ -82,16 +100,23 @@ export const useAtlas = create<AtlasState>((set, get) => ({
   loadSample() {
     const next = sampleHouse();
     set({ tables: next, ...firstView(next) });
-    writes = writes.then(() => persistence.clear()).catch(() => {});
+    queue(() => persistence.clear());
     persist(emptyTables(), next);
   },
 
   async eraseEverything() {
-    await writes;
-    await persistence.clear();
+    queue(() => persistence.clear());
     const next = ensureOthers(emptyTables());
     persist(emptyTables(), next);
+    await writes;
     set({ tables: next, unitId: null, levelId: null });
+  },
+
+  applyRemote(records) {
+    const next = mergeRecords(get().tables, records);
+    set({ tables: next });
+    const { unitId, levelId } = get();
+    if (!unitId || !next.units[unitId] || !levelId || !next.levels[levelId]) set(firstView(next));
   },
 }));
 

@@ -9,6 +9,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useAtlas } from '../data/store';
+import { useSync } from '../sync/controller';
 import { useTheme } from '../theme';
 
 export default function RootLayout() {
@@ -25,9 +26,10 @@ export default function RootLayout() {
     JetBrainsMono_600SemiBold,
   });
 
+  const startSync = useSync((s) => s.start);
   useEffect(() => {
-    void init();
-  }, [init]);
+    void init().then(startSync);
+  }, [init, startSync]);
 
   if (!ready || !fontsLoaded) {
     return (

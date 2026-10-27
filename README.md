@@ -23,7 +23,7 @@ Also in place early, because the M1 screens lean on them: local search with cate
 | # | Decision | Spec default | Chosen | Why |
 | --- | --- | --- | --- | --- |
 | — | App framework | Native SwiftUI | **Expo (React Native) + TypeScript** | One codebase for iPhone now and Android later |
-| 1 | Where data lives | SwiftData + CloudKit | **SQLite on the device** (`expo-sqlite`) | Still on-device, free, no server. CloudKit doesn't exist on Android, so sync is an M2 choice (Supabase or a backup file) |
+| 1 | Where data lives | SwiftData + CloudKit | **SQLite on the device, synced to Firebase** (Firestore + Storage) | Offline-first and free at this scale; works on iPhone, Android and web. The cloud copy is an organised database you can reuse from any other UI (see *Sync with Firebase*) |
 | 2 | Photo AI | Claude vision call | **DeepSeek** (planned, M3) | Cheaper. Behind an adapter with a configurable model name; DeepSeek's vision model id has changed during 2026, so check it at M3 |
 | 3 | Cut-outs | Apple Vision masking | **Apple Vision on iOS, ML Kit subject segmentation on Android** | Same on-device approach on both platforms, in a local Expo module |
 | 4–10 | Others bin, 70% cutoff, sort at 8, nudge 4/30d, stale 3 months, PDF labels, iOS 17 | as spec | as spec | Values live in `Settings` (`src/core/types.ts`) |
@@ -32,22 +32,70 @@ Also in place early, because the M1 screens lean on them: local search with cate
 
 ```bash
 npm install
-npm test            # rules engine: addresses, lift steps, resize/merge, deletes, search, filing
+npm test               # rules engine + sync engine (emulator tests are skipped here)
+npm run test:emulator  # sync against the Firebase emulators with the real security rules (needs Java)
 npm run typecheck
-npx expo start      # then press w for a web preview, or scan with a dev build
 ```
 
-**On your iPhone.** The app uses a custom native module (cut-outs) and SQLite, so it runs in a *development build*, not in Expo Go:
+### On your iPhone, with Expo Go (no Apple developer account needed)
 
-```bash
-npx eas-cli@latest login
-npx eas-cli@latest build --profile development --platform ios   # installs on your registered iPhone
-npx expo start --dev-client
+1. Install **Expo Go** from the App Store on the iPhone.
+2. On your computer (Mac, Windows or Linux, with [Node.js](https://nodejs.org) 20+), clone this repo and run:
+   ```bash
+   npm install
+   npm run go        # starts Metro in Expo Go mode and prints a QR code
+   ```
+3. Scan the QR code with the iPhone camera. Atlas opens inside Expo Go.
+
+The phone and computer must be on the same Wi-Fi. If they aren't, use `npx expo start --go --tunnel`. The computer has to be running while you use the app this way. Your data is stored on the phone, though, and with sync on it's also in Firebase.
+
+**What's missing in Expo Go:** only the automatic cut-out stickers (that needs a custom build). Photos show in a white sticker frame instead. Everything else works: camera, SQLite, sync.
+
+**Later:** an installable Android app is free (`npx eas-cli@latest build --profile preview --platform android` gives you an APK) and includes the cut-outs. A standalone iPhone install needs the $99/year Apple Developer Program: `npx eas-cli@latest build --profile development --platform ios`.
+
+### In a browser
+
+`npx expo start --web` runs the whole app in a browser, storing data in `localStorage` (and syncing too, if configured). It has no camera or cut-outs; you pick photos from disk instead. First run offers **Try with a sample house**, which loads the wardrobe and under-bed drawer from the boards.
+
+## Sync with Firebase
+
+Atlas works fully offline without an account. Sync is optional: sign in from **Settings → Sync**.
+
+### Set up your Firebase project (once, about 10 minutes)
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com) → **Create a project** (e.g. `atlas`). Google Analytics isn't needed.
+2. **Build → Authentication → Get started → Sign-in method → Email/Password → Enable.**
+3. **Build → Firestore Database → Create database.** Start in **production mode** and pick the location nearest to you.
+4. **Build → Storage → Get started** (for photos). New Storage buckets need the **Blaze** pay-as-you-go plan. You add a card, but a personal app stays inside the free allowance (5 GB stored). If you skip this step, everything except photos still syncs, and photos stay on the phone that took them.
+5. **Project settings (gear) → Your apps → Web (`</>`)**: register an app called `atlas`, then copy the `firebaseConfig` values into a new file `.env.local` (start from `.env.example`).
+6. Apply the security rules so only you can read your data. Either paste `firestore.rules` and `storage.rules` into the **Rules** tabs in the console, or run:
+   ```bash
+   npx firebase-tools login
+   npx firebase-tools deploy --only firestore:rules,storage   # project: atlasstorage-344e3 (.firebaserc)
+   ```
+7. Restart `npm run go`, open **Settings → Sync** in the app and **Create account**. On another device, **Sign in** with the same email.
+
+### How the data is organised
+
+Each entity has its own collection under your user, and documents are plain fields, so another app (a different UI, a script, the future Android station) can read and write them directly:
+
+```
+users/{uid}/units/{id}        name, room, kind, order
+users/{uid}/levels/{id}       unitId, code, name, type, reach, across, deep, high, frontLabel, backLabel
+users/{uid}/slots/{id}        levelId, column, depth, span, stackIndex
+users/{uid}/zones/{id}        levelId, code, name, order
+users/{uid}/bins/{id}         number, categoryId, nickname, size, fillEstimate, slotId, lastConfirmedAt, isOthers
+users/{uid}/categories/{id}   name, description, binOrder[]
+users/{uid}/items/{id}        name, binId, zoneId, quantityTotal, quantityOut, outSince, photoUri, stickerUri
+users/{uid}/events/{id}       type, itemId, binId, quantity, fromSlot, toSlot, at
+users/{uid}/corrections/{id}  itemName, aiCategoryId, userCategoryId, at
+users/{uid}/settings/settings aiCutoff, othersSortAt, nudgeTakeouts, …
+Storage: users/{uid}/photos/{file}   (photoUri "photo:abc.jpg" → photos/abc.jpg)
 ```
 
-EAS builds in the cloud, so you don't need Xcode locally (you do need an Apple developer account to install on a device). The same command with `--platform android` will build for Android later.
+Every document also has three sync fields: `_v` (version; the latest wins), `_deleted` (`true` = deleted; keep these as tombstones so other devices learn about it) and `_at` (server time of the write). Another client should write `_v: Date.now()`, `_deleted: false` and `_at: serverTimestamp()`, and Atlas will pick its changes up.
 
-**Web preview.** `npx expo start --web` runs the whole app in a browser, storing data in `localStorage`. It has no camera or cut-outs (you pick photos from disk instead). First run offers **Try with a sample house**, which loads the wardrobe and under-bed drawer from the boards.
+**How sync behaves:** the phone works from its own SQLite copy, so it's instant and works offline. Changes are pushed about a second after you make them; changes from other devices arrive live. If two devices edit the same record, the later edit wins. On a fresh phone, sign in *before* loading the sample house, otherwise both copies end up in your account.
 
 ## Layout
 
@@ -61,7 +109,8 @@ src/core/          Pure TypeScript domain: the rules are the product
   filing.ts        Best bin by room → use frequency → fill order; front-row nudge (M3/M2)
   search.ts        Local fuzzy search: names, nicknames, categories and descriptions
   sample.ts        The house from the design boards
-src/data/          SQLite persistence (web: localStorage), Zustand store, photos, capture
+src/data/          SQLite persistence with versions and tombstones (web: localStorage), Zustand store, photos, capture
+src/sync/          Sync engine (last writer wins, offline queue), Firestore mapping, Firebase setup, photo upload
 src/components/    Level grid, stickers, pickers, UI kit built on the design tokens
 src/app/           Screens (expo-router): level view, setup, editor, bin, item, add, search, out, history
 modules/atlas-cutout/  Native cut-out module (Swift + Kotlin)
@@ -73,5 +122,7 @@ Every operation in `src/core/ops.ts` returns new tables without mutating its inp
 
 - **The native cut-out module hasn't been compiled yet.** It was written against the SDK 58 module API (`@ExpoModule`/`@JS`) in an environment with no Xcode or Android SDK. If it fails to build or finds nothing, the app keeps working with the plain photo in a white sticker frame. The add screen says which path it took. Please run the first development build and report any build errors.
 - No live camera outline yet (D9); M1 uses the system camera.
-- Not built yet (M2): the search answer card with the level locator and numbered lift steps (D2), "It wasn't there", the front-row nudge UI, QR label PDF, sync, export.
+- Not built yet (M2): the search answer card with the level locator and numbered lift steps (D2), "It wasn't there", the front-row nudge UI, QR label PDF, export.
+- Sync is tested in code (sync engine with two simulated phones; Firestore emulator with the real rules; two browser sessions end to end), but not yet on a real phone or a real Firebase project.
+- Bin numbers come from a counter in `settings`. If two devices create bins at the same moment while offline, they could issue the same number. That's unlikely for one person, and fixable later by giving each device its own number range.
 - Not built yet (M3): DeepSeek filing (Place, D8), corrections, sorting Others (D14), setup/audit from one photo (D10).
