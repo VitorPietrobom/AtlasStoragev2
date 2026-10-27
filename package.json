@@ -16,6 +16,7 @@
     "expo-font": "~58.0.10",
     "expo-haptics": "~58.0.7",
     "expo-image": "~58.0.17",
+    "expo-image-manipulator": "~58.0.15",
     "expo-image-picker": "~58.0.10",
     "expo-linking": "~58.0.14",
     "expo-print": "~58.0.7",
@@ -49,8 +50,8 @@
     "web": "expo start --web",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "test:emulator": "firebase emulators:exec --only auth,firestore,storage --project demo-atlas 'vitest run src/sync/__tests__/firestore.emulator.test.ts'",
-    "emulators": "firebase emulators:start --only auth,firestore,storage --project demo-atlas",
+    "test:emulator": "firebase emulators:exec --only auth,firestore --project demo-atlas 'vitest run src/sync/__tests__/firestore.emulator.test.ts'",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-atlas",
     "go": "expo start --go",
     "lint": "expo lint"
   },

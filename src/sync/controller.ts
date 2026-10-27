@@ -61,7 +61,7 @@ export const useSync = create<SyncState>((set, get) => ({
         (records) => useAtlas.getState().applyRemote(records),
         (status) => set({ status }),
       );
-      void engine.start().then(() => uploadPhotos(fb.storage, user.uid, useAtlas.getState().tables).catch(() => {}));
+      void engine.start().then(() => uploadPhotos(fb.db, user.uid, useAtlas.getState().tables).catch(() => {}));
     });
   },
 
@@ -93,7 +93,7 @@ export const useSync = create<SyncState>((set, get) => ({
     const user = get().user;
     if (!engine || !fb || !user) return;
     await engine.push();
-    await uploadPhotos(fb.storage, user.uid, useAtlas.getState().tables).catch((e) => console.warn('Atlas: photo upload failed', e));
+    await uploadPhotos(fb.db, user.uid, useAtlas.getState().tables).catch((e) => console.warn('Atlas: photo upload failed', e));
   },
 }));
 

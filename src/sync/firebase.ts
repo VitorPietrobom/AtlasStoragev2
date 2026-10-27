@@ -1,11 +1,10 @@
 // Firebase setup from EXPO_PUBLIC_FIREBASE_* variables (see .env.example).
 // A Firebase web config is not a secret: access is enforced by the security
-// rules in firestore.rules and storage.rules.
+// rules in firestore.rules.
 
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, type Auth } from 'firebase/auth';
 import { connectFirestoreEmulator, initializeFirestore, type Firestore } from 'firebase/firestore';
-import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage';
 
 import { makeAuth } from './auth';
 
@@ -28,7 +27,6 @@ export interface FirebaseHandles {
   app: FirebaseApp;
   auth: Auth;
   db: Firestore;
-  storage: FirebaseStorage;
 }
 
 let handles: FirebaseHandles | null = null;
@@ -39,12 +37,10 @@ export function firebase(): FirebaseHandles | null {
   const app = getApps()[0] ?? initializeApp(config);
   const auth = makeAuth(app);
   const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
-  const storage = getStorage(app);
   if (emulatorHost) {
     connectAuthEmulator(auth, `http://${emulatorHost}:9099`, { disableWarnings: true });
     connectFirestoreEmulator(db, emulatorHost, 8080);
-    connectStorageEmulator(storage, emulatorHost, 9199);
   }
-  handles = { app, auth, db, storage };
+  handles = { app, auth, db };
   return handles;
 }

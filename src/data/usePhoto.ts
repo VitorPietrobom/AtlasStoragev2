@@ -15,7 +15,7 @@ export function usePhotoUri(ref: string | undefined): string | undefined {
     const fb = firebase();
     if (local || !name || !uid || !fb) return;
     let live = true;
-    void downloadPhoto(fb.storage, uid, name).then((uri) => {
+    void downloadPhoto(fb.db, uid, name).then((uri) => {
       if (live && uri) setFetched({ name, uri });
     });
     return () => {

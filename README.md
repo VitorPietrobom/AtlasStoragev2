@@ -23,7 +23,7 @@ Also in place early, because the M1 screens lean on them: local search with cate
 | # | Decision | Spec default | Chosen | Why |
 | --- | --- | --- | --- | --- |
 | — | App framework | Native SwiftUI | **Expo (React Native) + TypeScript** | One codebase for iPhone now and Android later |
-| 1 | Where data lives | SwiftData + CloudKit | **SQLite on the device, synced to Firebase** (Firestore + Storage) | Offline-first and free at this scale; works on iPhone, Android and web. The cloud copy is an organised database you can reuse from any other UI (see *Sync with Firebase*) |
+| 1 | Where data lives | SwiftData + CloudKit | **SQLite on the device, synced to Firebase Firestore** | Offline-first and free on Firebase's no-card Spark plan; works on iPhone, Android and web. The cloud copy is an organised database you can reuse from any other UI (see *Sync with Firebase*) |
 | 2 | Photo AI | Claude vision call | **DeepSeek** (planned, M3) | Cheaper. Behind an adapter with a configurable model name; DeepSeek's vision model id has changed during 2026, so check it at M3 |
 | 3 | Cut-outs | Apple Vision masking | **Apple Vision on iOS, ML Kit subject segmentation on Android** | Same on-device approach on both platforms, in a local Expo module |
 | 4–10 | Others bin, 70% cutoff, sort at 8, nudge 4/30d, stale 3 months, PDF labels, iOS 17 | as spec | as spec | Values live in `Settings` (`src/core/types.ts`) |
@@ -66,12 +66,12 @@ Atlas works fully offline without an account. Sync is optional: sign in from **S
 1. Go to [console.firebase.google.com](https://console.firebase.google.com) → **Create a project** (e.g. `atlas`). Google Analytics isn't needed.
 2. **Build → Authentication → Get started → Sign-in method → Email/Password → Enable.**
 3. **Build → Firestore Database → Create database.** Start in **production mode** and pick the location nearest to you.
-4. **Build → Storage → Get started** (for photos). New Storage buckets need the **Blaze** pay-as-you-go plan. You add a card, but a personal app stays inside the free allowance (5 GB stored). If you skip this step, everything except photos still syncs, and photos stay on the phone that took them.
+4. That's all you need from **Build**. Atlas doesn't use Firebase Storage (it needs a card), so you can ignore it.
 5. **Project settings (gear) → Your apps → Web (`</>`)**: register an app called `atlas`, then copy the `firebaseConfig` values into a new file `.env.local` (start from `.env.example`).
-6. Apply the security rules so only you can read your data. Either paste `firestore.rules` and `storage.rules` into the **Rules** tabs in the console, or run:
+6. Apply the security rules so only you can read your data. Either paste `firestore.rules` into **Firestore Database → Rules** in the console, or run:
    ```bash
    npx firebase-tools login
-   npx firebase-tools deploy --only firestore:rules,storage   # project: atlasstorage-344e3 (.firebaserc)
+   npx firebase-tools deploy --only firestore:rules   # project: atlasstorage-344e3 (.firebaserc)
    ```
 7. Restart `npm run go`, open **Settings → Sync** in the app and **Create account**. On another device, **Sign in** with the same email.
 
@@ -90,8 +90,10 @@ users/{uid}/items/{id}        name, binId, zoneId, quantityTotal, quantityOut, o
 users/{uid}/events/{id}       type, itemId, binId, quantity, fromSlot, toSlot, at
 users/{uid}/corrections/{id}  itemName, aiCategoryId, userCategoryId, at
 users/{uid}/settings/settings aiCutoff, othersSortAt, nudgeTakeouts, …
-Storage: users/{uid}/photos/{file}   (photoUri "photo:abc.jpg" → photos/abc.jpg)
+users/{uid}/photos/{file}     data (base64), contentType, width, height   (photoUri "photo:abc.jpg" → photos/abc.jpg)
 ```
+
+Photos are stored as small copies (longest side 640 px, about 30–150 KB each) so they fit the free plan's 1 GB, roughly 10,000 photos. The full-size original stays on the phone that took it. Firebase's free Spark plan needs no card and covers this app comfortably: 1 GB stored, 50,000 reads and 20,000 writes a day.
 
 Every document also has three sync fields: `_v` (version; the latest wins), `_deleted` (`true` = deleted; keep these as tombstones so other devices learn about it) and `_at` (server time of the write). Another client should write `_v: Date.now()`, `_deleted: false` and `_at: serverTimestamp()`, and Atlas will pick its changes up.
 

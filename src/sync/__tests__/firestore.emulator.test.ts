@@ -4,8 +4,16 @@
 
 import { deleteApp, initializeApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signOut } from 'firebase/auth';
-import { collection, connectFirestoreEmulator, getDoc, getDocs, initializeFirestore, doc, type Firestore } from 'firebase/firestore';
-import { connectStorageEmulator, getStorage, ref, uploadBytes } from 'firebase/storage';
+import {
+  collection,
+  connectFirestoreEmulator,
+  getDoc,
+  getDocs,
+  initializeFirestore,
+  doc,
+  setDoc,
+  type Firestore,
+} from 'firebase/firestore';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { slotsOfLevel } from '../../core/grid';
@@ -30,9 +38,7 @@ function connect(name: string) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
-  const storage = getStorage(app);
-  connectStorageEmulator(storage, '127.0.0.1', 9199);
-  return { auth, db, storage };
+  return { auth, db };
 }
 
 class Phone {
@@ -116,11 +122,13 @@ run('Firestore sync (emulator)', () => {
     await expect(getDocs(collection(intruder.db, 'users', uid, 'items'))).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
-  it('photos upload to the owner’s folder only', async () => {
-    const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-    await uploadBytes(ref(fbA.storage, `users/${uid}/photos/test.png`), png, { contentType: 'image/png' });
-    await expect(uploadBytes(ref(fbA.storage, `users/someone-else/photos/test.png`), png, { contentType: 'image/png' })).rejects.toThrow();
-    await expect(uploadBytes(ref(fbA.storage, `users/${uid}/photos/notes.txt`), png, { contentType: 'text/plain' })).rejects.toThrow();
+  it('photos are stored in the owner’s photos collection only', async () => {
+    const photo = { data: 'iVBORw0KGgo=', contentType: 'image/png', width: 1, height: 1 };
+    await setDoc(doc(fbA.db, 'users', uid, 'photos', 'test.png'), photo);
+    expect((await getDoc(doc(fbA.db, 'users', uid, 'photos', 'test.png'))).data()).toMatchObject(photo);
+    await expect(setDoc(doc(fbA.db, 'users', 'someone-else', 'photos', 'test.png'), photo)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
     phoneA.engine.stop();
     phoneB.engine.stop();
   });
