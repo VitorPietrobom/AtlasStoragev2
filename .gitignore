@@ -42,4 +42,3 @@ yarn-error.*
 
 # Firebase emulators and local config
 *-debug.log
-.firebaserc

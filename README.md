@@ -71,7 +71,7 @@ Atlas works fully offline without an account. Sync is optional: sign in from **S
 6. Apply the security rules so only you can read your data. Either paste `firestore.rules` and `storage.rules` into the **Rules** tabs in the console, or run:
    ```bash
    npx firebase-tools login
-   npx firebase-tools deploy --only firestore:rules,storage --project <your-project-id>
+   npx firebase-tools deploy --only firestore:rules,storage   # project: atlasstorage-344e3 (.firebaserc)
    ```
 7. Restart `npm run go`, open **Settings → Sync** in the app and **Create account**. On another device, **Sign in** with the same email.
 
